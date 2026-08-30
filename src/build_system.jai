@@ -764,12 +764,21 @@ go_to_current_build_error :: (placement: Editor_Placement = .in_place, show_erro
     // Try to open the file, maybe by prepending the build dir and removing the "./" at the start
     tried_paths: [..] string;
     tried_paths.allocator = temp;
-    path := copy_temporary_string(build_error.file);
-    path_overwrite_separators(path, #char "/");
-    if starts_with(path, "./") then advance(*path, 2);
+    base_path := copy_temporary_string(build_error.file);
+    path_overwrite_separators(base_path, #char "/");
+    if starts_with(base_path, "./") then advance(*base_path, 2);
+    path := copy_temporary_string(base_path);
     if !file_exists(path) && build_working_dir {
         array_add(*tried_paths, path);
-        path = tprint("%/%", build_working_dir, path);
+        path = tprint("%/%", build_working_dir, base_path);
+    }
+    if !file_exists(path) {
+        array_add(*tried_paths, path);
+        for workspace_path : config.workspace.members {
+            path = tprint("%/%", workspace_path, base_path);
+            if file_exists(path) then break;
+            array_add(*tried_paths, path);
+        }
     }
     if !file_exists(path) {
         array_add(*tried_paths, path);
